@@ -110,15 +110,18 @@ class MaxAggregate : public MinMaxAggregate<T> {
       const SelectivityVector& rows,
       const std::vector<VectorPtr>& args,
       bool mayPushdown) override {
-    // Re-enable pushdown for TIMESTAMP after
-    // https://github.com/facebookincubator/velox/issues/6297 is fixed.
-    if (args[0]->typeKind() == TypeKind::TIMESTAMP) {
+    if constexpr (BaseAggregate::template kMayPushdown<T>) {
+      if (!args[0]->type()->isDecimal()) {
+        if (mayPushdown && args[0]->isLazy()) {
+          BaseAggregate::template pushdown<
+              velox::aggregate::MinMaxHook<T, false>>(groups, rows, args[0]);
+          return;
+        }
+      } else {
+        mayPushdown = false;
+      }
+    } else {
       mayPushdown = false;
-    }
-    if (mayPushdown && args[0]->isLazy()) {
-      BaseAggregate::template pushdown<velox::aggregate::MinMaxHook<T, false>>(
-          groups, rows, args[0]);
-      return;
     }
     BaseAggregate::template updateGroups<true, T>(
         groups, rows, args[0], updateGroup, mayPushdown);
@@ -208,15 +211,18 @@ class MinAggregate : public MinMaxAggregate<T> {
       const SelectivityVector& rows,
       const std::vector<VectorPtr>& args,
       bool mayPushdown) override {
-    // Re-enable pushdown for TIMESTAMP after
-    // https://github.com/facebookincubator/velox/issues/6297 is fixed.
-    if (args[0]->typeKind() == TypeKind::TIMESTAMP) {
+    if constexpr (BaseAggregate::template kMayPushdown<T>) {
+      if (!args[0]->type()->isDecimal()) {
+        if (mayPushdown && args[0]->isLazy()) {
+          BaseAggregate::template pushdown<
+              velox::aggregate::MinMaxHook<T, true>>(groups, rows, args[0]);
+          return;
+        }
+      } else {
+        mayPushdown = false;
+      }
+    } else {
       mayPushdown = false;
-    }
-    if (mayPushdown && args[0]->isLazy()) {
-      BaseAggregate::template pushdown<velox::aggregate::MinMaxHook<T, true>>(
-          groups, rows, args[0]);
-      return;
     }
     BaseAggregate::template updateGroups<true, T>(
         groups, rows, args[0], updateGroup, mayPushdown);
